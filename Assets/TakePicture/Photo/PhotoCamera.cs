@@ -90,11 +90,6 @@ public class PhotoCamera : MonoBehaviour
         //  Quaternion rotation = Quaternion.LookRotation(-cameraToWorldMatrix.GetColumn(2), cameraToWorldMatrix.GetColumn(1));
         // Vector3 cameraForward = cameraToWorldMatrix * Vector3.forward;
 
-
-
-
-
-
         Vector3 cameraForward = Camera.main.transform.forward;
         cameraForward.Normalize();
         newElement.transform.position  = Camera.main.transform.position + (cameraForward * 0.6f);

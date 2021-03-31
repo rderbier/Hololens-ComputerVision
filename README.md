@@ -10,26 +10,27 @@ Refer to [Locatable camera info from Microsoft](https://docs.microsoft.com/en-us
 
 
 ### Dependencies
-- MRTK Foundation 2.6.1
 - Unity 2019.4.23f1
-- use of XR plugin management in Unity Project settings
-
+- Text Mesh Pro
+- MRTK Foundation 2.6.1
 
 ### Install
 Open the project in Unity 2019.4.23f1
 
 Unity should ask to install Text Mesh Pro and should install the MRTK Libraries
+- Text Mesh Pro via Window, Text Mesh Pro, install TMP Essential Resources
+- MRTK Libraries via XR plugin management in Unity Project settings
 
-Verify that
+Verify that ...
+- your build settings is correctly set for Hololens 2 e.g. switch to Universal Windows Platform, ARM64
+- The build contains the scene TakePictureScene (using Add Open Scenes)
 - 'MixedRealitySpeechCommandsProfile' in CustomProfile folder contains the key word "Scan Image".
-- your build settings is correctly set for Hololens 2
-- The build contains the scene TakePictureScene
 
-Build, deploy to Hololens 2 (through Visual Studio).
+Build, deploy to Hololens 2 (through Visual Studio 19).
 
 The App should request access to Camera and Microphone, accept !
 
-Enjoy taking Picture by just saying "Take Picture"
+Enjoy taking Picture by just saying "Scan Image"
 
 ### Next Steps
 - Send the image to a Computer Vision service and display the result as an augmented reality asset close to where the picture was taken

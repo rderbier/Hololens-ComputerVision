@@ -22,6 +22,8 @@
 /[Aa]ssets/TextMesh*
 /[Aa]ssets/MixedReality*.meta
 /[Aa]ssets/TextMesh*.meta
+/[Aa]ssets/MRTK/
+/[Aa]ssets/MRTK/*.meta
 
 # Asset meta data should only be ignored when the corresponding asset is also ignored
 #!/[Aa]ssets/**/*.meta
