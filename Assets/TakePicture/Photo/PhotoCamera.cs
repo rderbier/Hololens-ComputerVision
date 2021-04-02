@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine.Windows.WebCam;
 using TMPro;
@@ -9,23 +10,26 @@ using TMPro;
 public class PhotoCamera : MonoBehaviour
 {
     PhotoCapture photoCaptureObject = null;
-  
+
     public GameObject PhotoPrefab;
     public TextMeshPro info;
+    public bool showPicture = true;
 
     Resolution cameraResolution;
-    
+
     float ratio = 1.0f;
     AudioSource shutterSound;
+    private MqttHelper mqttHelper;
 
     // Use this for initialization
     void Start()
     {
         shutterSound = GetComponent<AudioSource>() as AudioSource;
+        mqttHelper = GetComponent<MqttHelper>() as MqttHelper;
         Debug.Log("File path " + Application.persistentDataPath);
         cameraResolution = PhotoCapture.SupportedResolutions.OrderByDescending((res) => res.width * res.height).First();
 
-        
+
         ratio = (float)cameraResolution.height / (float)cameraResolution.width;
 
         // Create a PhotoCapture object
@@ -33,12 +37,12 @@ public class PhotoCamera : MonoBehaviour
             photoCaptureObject = captureObject;
             Debug.Log("camera ready to take picture");
         });
-        
+
     }
     public void StopCamera()
     {
         // Deactivate our camera
-        
+
         photoCaptureObject?.StopPhotoModeAsync(OnStoppedPhotoMode);
     }
     public void TakePicture()
@@ -47,7 +51,8 @@ public class PhotoCamera : MonoBehaviour
         cameraParameters.hologramOpacity = 0.0f;
         cameraParameters.cameraResolutionWidth = cameraResolution.width;
         cameraParameters.cameraResolutionHeight = cameraResolution.height;
-        cameraParameters.pixelFormat = CapturePixelFormat.BGRA32;
+        //cameraParameters.pixelFormat = CapturePixelFormat.BGRA32;
+        cameraParameters.pixelFormat = showPicture == true ? CapturePixelFormat.BGRA32 : CapturePixelFormat.JPEG;
 
         // Activate the camera
         if (photoCaptureObject != null)
@@ -69,12 +74,34 @@ public class PhotoCamera : MonoBehaviour
 
     void OnCapturedPhotoToMemory(PhotoCapture.PhotoCaptureResult result, PhotoCaptureFrame photoCaptureFrame)
     {
-        // Copy the raw image data into our target texture
+        List<byte> imageBufferList = new List<byte>();
+        if (photoCaptureFrame.pixelFormat == CapturePixelFormat.JPEG)
+        {
+
+            // Copy the raw IMFMediaBuffer data into our empty byte list.
+            photoCaptureFrame.CopyRawImageDataIntoBuffer(imageBufferList);
+        }
+        else
+        {
+            // Copy the raw image data into our target texture
+            imageBufferList = ConvertAndShowOnDebugPane(photoCaptureFrame);
+
+        }
+
+
+        string data = System.Convert.ToBase64String(imageBufferList.ToArray());
+        mqttHelper.Publish("image", data);
+
+        //You may only use this method if you specified the BGRA32 format in your CameraParameters.
+        photoCaptureObject.StopPhotoModeAsync(OnStoppedPhotoMode);
+
+    }
+    private List<byte> ConvertAndShowOnDebugPane(PhotoCaptureFrame photoCaptureFrame)
+    {
         var targetTexture = new Texture2D(cameraResolution.width, cameraResolution.height);
         photoCaptureFrame.UploadImageDataToTexture(targetTexture);
-
         // Create a gameobject that we can apply our texture to
-        
+
         GameObject newElement = Instantiate<GameObject>(PhotoPrefab);
         GameObject quad = newElement.transform.Find("Quad").gameObject;
         Renderer quadRenderer = quad.GetComponent<Renderer>() as Renderer;
@@ -97,22 +124,19 @@ public class PhotoCamera : MonoBehaviour
 
         Vector3 cameraForward = Camera.main.transform.forward;
         cameraForward.Normalize();
-        newElement.transform.position  = Camera.main.transform.position + (cameraForward * 0.6f);
-        
+        newElement.transform.position = Camera.main.transform.position + (cameraForward * 0.6f);
+
         newElement.transform.rotation = Quaternion.LookRotation(cameraForward, Vector3.up);
         Vector3 scale = newElement.transform.localScale;
-        scale.y = scale.y* ratio; // scale the entire photo on height
+        scale.y = scale.y * ratio; // scale the entire photo on height
         newElement.transform.localScale = scale;
-
-
-
-
+        return new List<byte>(targetTexture.EncodeToJPG());
     }
 
     void OnStoppedPhotoMode(PhotoCapture.PhotoCaptureResult result)
     {
         // Shutdown our photo capture resource
-        photoCaptureObject.Dispose();
-        photoCaptureObject = null;
+        //photoCaptureObject.Dispose();
+        //photoCaptureObject = null;
     }
 }
