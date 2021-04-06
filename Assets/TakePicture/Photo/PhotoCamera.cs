@@ -8,6 +8,25 @@ using TMPro;
 using Microsoft.MixedReality.Toolkit;
 using Microsoft.MixedReality.Toolkit.Input;
 using System.Drawing;
+using uPLibrary.Networking.M2Mqtt;
+using uPLibrary.Networking.M2Mqtt.Messages;
+using Newtonsoft.Json;
+using CustomVison;
+using System;
+
+public class ScanContext
+{
+    public double horizontalAngleRadian { get; protected set; }
+    public float formFactor { get; protected set; }
+    public Transform origin { get; protected set; }
+
+    public ScanContext( double angle, float ratio, Transform cameraTransform)
+    {
+        horizontalAngleRadian = angle  * (Math.PI / 180); 
+        formFactor = ratio;
+        origin = cameraTransform;
+    }
+}
 
 
 public class PhotoCamera : MonoBehaviour
@@ -18,10 +37,12 @@ public class PhotoCamera : MonoBehaviour
     public GameObject cursor;
     public TextMeshPro info;
     public bool showPicture = true;
+    public double horizontalAngle = 64.69f; // how much of the image do we take
 
     Resolution cameraResolution;
 
     float ratio = 1.0f;
+    
     AudioSource shutterSound;
     private MqttHelper mqttHelper;
     private IMixedRealityGazeProvider gaze;
@@ -30,21 +51,38 @@ public class PhotoCamera : MonoBehaviour
     private Vector3 gazePoint;
     private bool gazeStarted = false;
     private float timer;
+    private ScanContext scanContext;
+    private ObjectLabeler labeler;
+    private CustomVisionResult result;
+    private string debugText = "Debug";
+    //private Dictionary<System.Guid, ScanContext> scanContextMap = new Dictionary<System.Guid, ScanContext>();
+    // we may use a dictionary to store many scans waiting for results ... let's start with one for now
 
     // Use this for initialization
     void Start()
     {
+        
         gaze = CoreServices.InputSystem.GazeProvider;
         cursor.SetActive(false);//disable cursor
         shutterSound = GetComponent<AudioSource>() as AudioSource;
+        labeler = GetComponent<ObjectLabeler>() as ObjectLabeler; 
         mqttHelper = GetComponent<MqttHelper>() as MqttHelper;
-        Debug.Log("File path " + Application.persistentDataPath);
+        mqttHelper.Subscribe("tohololens", ResultReceiver);
+
+        // Debug.Log("File path " + Application.persistentDataPath);
         // take lower resolution available
-        cameraResolution = PhotoCapture.SupportedResolutions.OrderByDescending((res) => res.width * res.height).Last();
+        if ((PhotoCapture.SupportedResolutions != null) && (PhotoCapture.SupportedResolutions.Count() > 0))
+        {
+            cameraResolution = PhotoCapture.SupportedResolutions.OrderByDescending((res) => res.width * res.height).Last();
 
 
-        ratio = (float)cameraResolution.height / (float)cameraResolution.width;
-
+            ratio = (float)cameraResolution.height / (float)cameraResolution.width;
+        } else
+        {
+            ratio = 9f / 16f;
+        }
+        scanContext = new ScanContext(horizontalAngle, ratio, Camera.main.transform); // create a context with Camera position.
+        Debug.Log("scanContext init " + scanContext.ToString());
         // Create a PhotoCapture object
         PhotoCapture.CreateAsync(false, delegate (PhotoCapture captureObject)
         {
@@ -55,6 +93,7 @@ public class PhotoCamera : MonoBehaviour
     }
     void Update()
     {
+        info.SetText(debugText);
         float dist;
         float focus = 0.0f;
         if (startPicture)
@@ -66,8 +105,6 @@ public class PhotoCamera : MonoBehaviour
                 cursor.transform.position = gazePoint;
                 Vector3 cameraForward = Camera.main.transform.forward;
                 cameraForward.Normalize();
-
-
                 cursor.transform.rotation = Quaternion.LookRotation(cameraForward, Vector3.up);
                 if (gazeStarted == false)
                 {
@@ -117,6 +154,23 @@ public class PhotoCamera : MonoBehaviour
 
         }
 
+        
+        if (result != null)
+        {
+            try
+            {
+                debugText+="\nReceived json " + result.ID;
+                this.labeler.LabelObjects(result.recognitionData, scanContext.horizontalAngleRadian, scanContext.formFactor, scanContext.origin);
+            } catch(Exception e)
+            {
+                Debug.Log("label error " + e.Message); +
+                debugText += e.Message;
+            }
+            // infotext = "Received message from " + e.Topic + " : " + msg;
+            result = null;
+        }
+        
+
     }
     public void StopCamera()
     {
@@ -137,7 +191,8 @@ public class PhotoCamera : MonoBehaviour
         cameraParameters.cameraResolutionHeight = cameraResolution.height;
         //cameraParameters.pixelFormat = CapturePixelFormat.BGRA32;
         cameraParameters.pixelFormat = showPicture == true ? CapturePixelFormat.BGRA32 : CapturePixelFormat.JPEG;
-
+        
+        scanContext = new ScanContext(horizontalAngle,ratio,Camera.main.transform); // create a context with Camera position.
         // Activate the camera
         if (photoCaptureObject != null)
         {
@@ -178,8 +233,11 @@ public class PhotoCamera : MonoBehaviour
 
 
 
-        string data = System.Convert.ToBase64String(imageBufferList.ToArray());
-        mqttHelper.Publish("image", data);
+        string data = System.Convert.ToBase64String(imageArray);
+        string pictureID = System.Guid.NewGuid().ToString();
+        mqttHelper.Publish("image", "{\"ID\":\""+pictureID+"\",\"image\":\""+data+"\"}");
+        // save the camera position and image size
+
 
         //You may only use this method if you specified the BGRA32 format in your CameraParameters.
         photoCaptureObject.StopPhotoModeAsync(OnStoppedPhotoMode);
@@ -197,10 +255,15 @@ public class PhotoCamera : MonoBehaviour
             var fullTexture = new Texture2D(cameraResolution.width, cameraResolution.height);
             //targetTexture.LoadRawTextureData(imageBufferList.ToArray()); // use memory stream array to create the texture
             photoCaptureFrame.UploadImageDataToTexture(fullTexture);
-            int x = cameraResolution.width / 3;
-            int y = cameraResolution.height / 3;
-            int dx = cameraResolution.width / 3;
-            int dy = cameraResolution.height / 3;
+            // crop a  portion of the image at the center
+            double horizontalCameraAngleRadian = 64.69f * (Math.PI / 180); // Hololens2 camera angle in deg
+            double angleRadian = horizontalAngle * (Math.PI / 180);
+            double cropFactor = Math.Tan(angleRadian / 2f) / Math.Tan(horizontalCameraAngleRadian / 2f);
+            
+            int dx = (int)(cameraResolution.width * cropFactor);
+            int dy = (int)(cameraResolution.height * cropFactor);
+            int x = (cameraResolution.width - dx)/ 2;
+            int y = (cameraResolution.height - dy) / 2;
             Color[] pix = fullTexture.GetPixels(x, y, dx, dy);
             var targetTexture = new Texture2D(dx, dy);
             targetTexture.SetPixels(pix);
@@ -229,11 +292,13 @@ public class PhotoCamera : MonoBehaviour
 
             Vector3 cameraForward = Camera.main.transform.forward;
             cameraForward.Normalize();
-            newElement.transform.position = Camera.main.transform.position + (cameraForward * 1.0f);
+            var dist = 1.0f;
+            newElement.transform.position = Camera.main.transform.position + (cameraForward * dist);
 
             newElement.transform.rotation = Quaternion.LookRotation(cameraForward, Camera.main.transform.up); // align with camera up 
             Vector3 scale = newElement.transform.localScale;
-            scale.y = scale.y * ratio; // scale the entire photo on height
+            scale.x = 2f * dist * (float)Math.Tan(angleRadian / 2f);
+            scale.y = scale.x * ratio; // scale the entire photo on height
             newElement.transform.localScale = scale;
             List<byte> raw = new List<byte>(targetTexture.EncodeToJPG());
             return raw.ToArray();
@@ -253,5 +318,23 @@ public class PhotoCamera : MonoBehaviour
         // Shutdown our photo capture resource
         //photoCaptureObject.Dispose();
         //photoCaptureObject = null;
+    }
+    private Transform CopyCameraTransForm()
+    {
+        var g = new GameObject();
+        g.transform.position = Camera.main.transform.position;
+        g.transform.rotation = Camera.main.transform.rotation;
+        g.transform.localScale = Camera.main.transform.localScale;
+        return g.transform;
+    }
+    public void ResultReceiver(object sender, MqttMsgPublishEventArgs e)
+    {
+        // JsonConvert.DeserializeObject<SensorMeasurement>(Encoding.UTF8.GetString(e.Message));
+        string msg = System.Text.Encoding.UTF8.GetString(e.Message);
+        
+        Debug.Log("Received message from " + e.Topic + " : " + msg);
+        
+        result = JsonConvert.DeserializeObject<CustomVisionResult>(msg);
+        
     }
 }
