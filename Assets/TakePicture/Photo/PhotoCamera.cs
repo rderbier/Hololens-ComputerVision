@@ -163,7 +163,7 @@ public class PhotoCamera : MonoBehaviour
                 this.labeler.LabelObjects(result.recognitionData, scanContext.horizontalAngleRadian, scanContext.formFactor, scanContext.origin);
             } catch(Exception e)
             {
-                Debug.Log("label error " + e.Message); +
+                Debug.Log("label error " + e.Message); 
                 debugText += e.Message;
             }
             // infotext = "Received message from " + e.Topic + " : " + msg;
