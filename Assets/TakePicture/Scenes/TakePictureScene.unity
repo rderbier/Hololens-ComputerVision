@@ -765,6 +765,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: TouchIcon
       objectReference: {fileID: 0}
+    - target: {fileID: 453403439432985359, guid: 2b4dd48faf0e0984fa28c6a9082c1ae7,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2b4dd48faf0e0984fa28c6a9082c1ae7, type: 3}
 --- !u!1 &2060959537

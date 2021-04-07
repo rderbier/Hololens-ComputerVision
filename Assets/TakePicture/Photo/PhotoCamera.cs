@@ -24,7 +24,15 @@ public class ScanContext
     {
         horizontalAngleRadian = angle  * (Math.PI / 180); 
         formFactor = ratio;
-        origin = cameraTransform;
+        origin = CopyTransform(cameraTransform);
+    }
+    private Transform CopyTransform(Transform t)
+    {
+        var g = new GameObject();
+        g.transform.position = t.position;
+        g.transform.rotation = t.rotation;
+        g.transform.localScale = t.localScale;
+        return g.transform;
     }
 }
 
@@ -102,10 +110,14 @@ public class PhotoCamera : MonoBehaviour
             if (gazePoint != null)
             {
 
-                if (cursor != null) { cursor.transform.position = gazePoint; }
-                Vector3 cameraForward = Camera.main.transform.forward;
-                cameraForward.Normalize();
-                cursor.transform.rotation = Quaternion.LookRotation(cameraForward, Vector3.up);
+                if (cursor != null)
+                {
+                    Vector3 cameraForward = Camera.main.transform.forward; 
+                    cursor.transform.position = gazePoint - 0.1f* cameraForward;
+                    
+                    cameraForward.Normalize();
+                    cursor.transform.rotation = Quaternion.LookRotation(cameraForward, Vector3.up);
+                }
                 if (gazeStarted == false)
                 {
                     startPoint = gazePoint;
