@@ -4,7 +4,10 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/TakePicture/Scenes/TakePictureScene.unity
+    guid: c542a7213caba9f408ed8446509e96ad
   m_configObjects:
     Unity.XR.WindowsMR.Settings: {fileID: 11400000, guid: c8337178f61220f4eb7f08f4d3e2f96a,
       type: 2}
