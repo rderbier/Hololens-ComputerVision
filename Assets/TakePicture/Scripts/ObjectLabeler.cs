@@ -2,6 +2,7 @@
 using CustomVison;
 using UnityEngine;
 using System;
+using Microsoft.MixedReality.Toolkit.UI;
 
 
 public class ObjectLabeler : MonoBehaviour
@@ -93,6 +94,15 @@ public class ObjectLabeler : MonoBehaviour
     {
         var labelObject = Instantiate(marker);
         labelObject.transform.position = location;
+        var toolTip = labelObject.GetComponentInChildren<ToolTip>() as ToolTip;
+        if (toolTip != null)
+        {
+            toolTip.ToolTipText = text;
+            Debug.Log("Set Tooltip text ");
+        } else
+        {
+            Debug.Log("no Tooltip");
+        }
         //var toolTip = labelObject.GetComponent<ToolTip>();
         //toolTip.ShowOutline = false;
         //toolTip.ShowBackground = true;
