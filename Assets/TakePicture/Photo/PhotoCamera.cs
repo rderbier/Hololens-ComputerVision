@@ -63,7 +63,7 @@ public class PhotoCamera : MonoBehaviour
     {
         
         gaze = CoreServices.InputSystem.GazeProvider;
-        cursor.SetActive(false);//disable cursor
+        cursor?.SetActive(false);//disable cursor
         shutterSound = GetComponent<AudioSource>() as AudioSource;
         labeler = GetComponent<ObjectLabeler>() as ObjectLabeler; 
         mqttHelper = GetComponent<MqttHelper>() as MqttHelper;
@@ -102,7 +102,7 @@ public class PhotoCamera : MonoBehaviour
             if (gazePoint != null)
             {
 
-                cursor.transform.position = gazePoint;
+                if (cursor != null) { cursor.transform.position = gazePoint; }
                 Vector3 cameraForward = Camera.main.transform.forward;
                 cameraForward.Normalize();
                 cursor.transform.rotation = Quaternion.LookRotation(cameraForward, Vector3.up);
@@ -111,7 +111,7 @@ public class PhotoCamera : MonoBehaviour
                     startPoint = gazePoint;
                     dist = Vector3.Distance(Camera.main.transform.position, gazePoint);
                     focus = dist * 0.02f;
-                    cursor.SetActive(true); //enable cursor
+                    cursor?.SetActive(true); //enable cursor
                     gazeStarted = true;
                     timer = 0.0f;
                     info.SetText("test gaze started with focus  " + focus);
@@ -134,7 +134,7 @@ public class PhotoCamera : MonoBehaviour
                         Debug.Log("test gaze at same point done -> take picture  ");
                         startPicture = false; // 1 second of gaze at same point 
                         gazeStarted = false;
-                        cursor.SetActive(false);
+                        cursor?.SetActive(false);
 
                         TakePicture();
                     }
