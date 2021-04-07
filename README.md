@@ -17,14 +17,17 @@ Refer to [Locatable camera info from Microsoft](https://docs.microsoft.com/en-us
 ### Install
 Open the project in Unity 2019.4.23f1
 
-Unity should ask to install Text Mesh Pro and should install the MRTK Libraries
+Unity should ask to install Text Mesh Pro
 - Text Mesh Pro via Window, Text Mesh Pro, install TMP Essential Resources
+- install the MRTK Foundations / Standard Assets via Microsoft Mixed Reality Feature Tool (beta)
 - MRTK Libraries via XR plugin management in Unity Project settings
 
 Verify that ...
 - your build settings is correctly set for Hololens 2 e.g. switch to Universal Windows Platform, ARM64
 - The build contains the scene TakePictureScene (using Add Open Scenes)
 - 'MixedRealitySpeechCommandsProfile' in CustomProfile folder contains the key word "Scan Image".
+
+> Note: it could be needed to reinstall M2Mqtt Package via Unity Asset Manager.
 
 Build, deploy to Hololens 2 (through Visual Studio 19).
 
