@@ -67,7 +67,7 @@ public class PhotoCamera : MonoBehaviour
         shutterSound = GetComponent<AudioSource>() as AudioSource;
         labeler = GetComponent<ObjectLabeler>() as ObjectLabeler; 
         mqttHelper = GetComponent<MqttHelper>() as MqttHelper;
-        mqttHelper.Subscribe("tohololens", ResultReceiver);
+        mqttHelper.Subscribe( ResultReceiver);
 
         // Debug.Log("File path " + Application.persistentDataPath);
         // take lower resolution available
@@ -327,13 +327,12 @@ public class PhotoCamera : MonoBehaviour
         g.transform.localScale = Camera.main.transform.localScale;
         return g.transform;
     }
-    public void ResultReceiver(object sender, MqttMsgPublishEventArgs e)
+    public void ResultReceiver(string msg)
     {
-        // JsonConvert.DeserializeObject<SensorMeasurement>(Encoding.UTF8.GetString(e.Message));
-        string msg = System.Text.Encoding.UTF8.GetString(e.Message);
         
-        Debug.Log("Received message from " + e.Topic + " : " + msg);
         
+        Debug.Log("Received message : " + msg);
+        debugText += msg;
         result = JsonConvert.DeserializeObject<CustomVisionResult>(msg);
         
     }

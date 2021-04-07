@@ -21,12 +21,17 @@ public class MqttHelper : MonoBehaviour
     public string password = "test";
     public TextAsset certificate;
     public TextMeshPro info;
+
     private string infotext = "waiting for message";
+    
 
     // listen on all the Topic
     // static string subTopic = "#";
     public string inboundTopic = "tohololens";
-  
+    public delegate void OnMessage(string msg);
+    private static OnMessage messageReceived;
+    
+
     // Start is called before the first frame update
     void Start()
     {
@@ -42,7 +47,7 @@ public class MqttHelper : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-      // info.SetText(infotext);
+     
 
 
     }
@@ -62,6 +67,9 @@ public class MqttHelper : MonoBehaviour
         try
         {
             client.Connect(clientId, userName, password);
+            client.MqttMsgPublishReceived += client_MqttMsgPublishReceived;
+            byte[] qosLevels = { MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE };
+            client.Subscribe(new string[] { inboundTopic }, qosLevels);
         }
         catch (System.Exception e)
         {
@@ -71,8 +79,10 @@ public class MqttHelper : MonoBehaviour
     void client_MqttMsgPublishReceived(object sender, MqttMsgPublishEventArgs e)
     {
         string msg = System.Text.Encoding.UTF8.GetString(e.Message);
+       
         Debug.Log("Received message from " + e.Topic + " : " + msg);
-        infotext = "Received message from " + e.Topic + " : " + msg;
+        
+        messageReceived(msg);
 
 
     }
@@ -89,11 +99,10 @@ public class MqttHelper : MonoBehaviour
             Debug.LogError("cannot publish, client not connected");
         }
     }
-    public void Subscribe(string topic,   MqttClient.MqttMsgPublishEventHandler receiver) {
-        client.MqttMsgPublishReceived += receiver;
-        Debug.Log("Subscribing to topic " + topic);
-        byte[] qosLevels = { MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE };
-        client.Subscribe(new string[] { topic }, qosLevels);
+    public void Subscribe( OnMessage receiver) {
+        messageReceived += receiver;
+        Debug.Log("Adding message lsitener" );
+        
         
         }
 }
