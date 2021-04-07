@@ -159,8 +159,9 @@ public class PhotoCamera : MonoBehaviour
         {
             try
             {
-                debugText+="\nReceived json " + result.ID;
-                this.labeler.LabelObjects(result.recognitionData, scanContext.horizontalAngleRadian, scanContext.formFactor, scanContext.origin);
+                
+                labeler.LabelObjects(result.recognitionData, scanContext.horizontalAngleRadian, scanContext.formFactor, scanContext.origin);
+                debugText += "\nLabel Set " + result.ID;
             } catch(Exception e)
             {
                 Debug.Log("label error " + e.Message); 
@@ -290,12 +291,12 @@ public class PhotoCamera : MonoBehaviour
 
 
 
-            Vector3 cameraForward = Camera.main.transform.forward;
+            Vector3 cameraForward = scanContext.origin.forward;
             cameraForward.Normalize();
             var dist = 1.0f;
             newElement.transform.position = Camera.main.transform.position + (cameraForward * dist);
 
-            newElement.transform.rotation = Quaternion.LookRotation(cameraForward, Camera.main.transform.up); // align with camera up 
+            newElement.transform.rotation = Quaternion.LookRotation(cameraForward, scanContext.origin.up); // align with camera up 
             Vector3 scale = newElement.transform.localScale;
             scale.x = 2f * dist * (float)Math.Tan(angleRadian / 2f);
             scale.y = scale.x * ratio; // scale the entire photo on height
@@ -332,8 +333,15 @@ public class PhotoCamera : MonoBehaviour
         
         
         Debug.Log("Received message : " + msg);
-        debugText += msg;
-        result = JsonConvert.DeserializeObject<CustomVisionResult>(msg);
+        debugText = msg;
+        try
+        {
+            result = JsonConvert.DeserializeObject<CustomVisionResult>(msg);
+            debugText += "\n message ID " + result.ID;
+        } catch (Exception e)
+        {
+            debugText = "Error " + e.Message;
+        }
         
     }
 }
