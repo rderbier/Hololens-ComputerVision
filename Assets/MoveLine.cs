@@ -26,6 +26,7 @@ public class MoveLine : MonoBehaviour
     {
         line.SetActive(false);
         background.SetActive(false);
+        line.transform.localPosition.y = 0f;
         started = false;
 
     }

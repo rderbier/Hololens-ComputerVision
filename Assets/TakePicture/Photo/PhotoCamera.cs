@@ -187,6 +187,8 @@ public class PhotoCamera : MonoBehaviour
         {
             try
             {
+                ScannerScreen.GetComponent<MoveLine>().stopScanAnimation();
+                
                 ScannerScreen.SetActive(false);  // remove the scanner
                 labeler.LabelObjects(result.recognitionData, scanContext.horizontalAngleRadian, scanContext.formFactor, scanContext.origin);
                 debugText += "\nLabel Set " + result.ID;
