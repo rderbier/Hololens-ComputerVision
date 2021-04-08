@@ -67,6 +67,7 @@ public class MqttHelper : MonoBehaviour
         try
         {
             client.Connect(clientId, userName, password);
+            Debug.Log("connected to mqtt broker");
             client.MqttMsgPublishReceived += client_MqttMsgPublishReceived;
             byte[] qosLevels = { MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE };
             client.Subscribe(new string[] { inboundTopic }, qosLevels);

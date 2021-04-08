@@ -42,16 +42,20 @@ public class PhotoCamera : MonoBehaviour
     PhotoCapture photoCaptureObject = null;
 
     public GameObject PhotoPrefab;
+    public GameObject ScannerScreen;
     public GameObject cursor;
     public TextMeshPro info;
     public bool showPicture = true;
     public double horizontalAngle = 64.69f; // how much of the image do we take
-
+    public string outboundTopic = "hololensimage";
+    public float scannerScreenDistance = 1.0f;
     Resolution cameraResolution;
 
     float ratio = 1.0f;
     
     AudioSource shutterSound;
+    private double angleRadian;
+    const double horizontalCameraAngleRadian = 64.69f * (Math.PI / 180); // Hololens2 camera angle in deg
     private MqttHelper mqttHelper;
     private IMixedRealityGazeProvider gaze;
     private bool startPicture = false;
@@ -63,15 +67,17 @@ public class PhotoCamera : MonoBehaviour
     private ObjectLabeler labeler;
     private CustomVisionResult result;
     private string debugText = "Debug";
+    
     //private Dictionary<System.Guid, ScanContext> scanContextMap = new Dictionary<System.Guid, ScanContext>();
     // we may use a dictionary to store many scans waiting for results ... let's start with one for now
 
     // Use this for initialization
     void Start()
     {
-        
+        angleRadian = horizontalAngle * (Math.PI / 180);
         gaze = CoreServices.InputSystem.GazeProvider;
         cursor?.SetActive(false);//disable cursor
+        
         shutterSound = GetComponent<AudioSource>() as AudioSource;
         labeler = GetComponent<ObjectLabeler>() as ObjectLabeler; 
         mqttHelper = GetComponent<MqttHelper>() as MqttHelper;
@@ -85,11 +91,18 @@ public class PhotoCamera : MonoBehaviour
 
 
             ratio = (float)cameraResolution.height / (float)cameraResolution.width;
+            Debug.Log("Resolution " + cameraResolution.height + " x " + cameraResolution.width);
         } else
         {
             ratio = 9f / 16f;
         }
         scanContext = new ScanContext(horizontalAngle, ratio, Camera.main.transform); // create a context with Camera position.
+        ScannerScreen.SetActive(false);  // remove the scanner
+        Vector3 scale = ScannerScreen.transform.localScale;
+        scale.x = 2f * scannerScreenDistance * (float)Math.Tan(angleRadian / 2f);
+        scale.y = scale.x * ratio; // scale the entire photo on height
+        ScannerScreen.transform.localScale = scale;
+
         Debug.Log("scanContext init " + scanContext.ToString());
         // Create a PhotoCapture object
         PhotoCapture.CreateAsync(false, delegate (PhotoCapture captureObject)
@@ -106,18 +119,20 @@ public class PhotoCamera : MonoBehaviour
         float focus = 0.0f;
         if (startPicture)
         {
+            
             gazePoint = gaze.HitInfo.point;
             if (gazePoint != null)
             {
+                placeScanner(Camera.main.transform);
 
-                if (cursor != null)
-                {
-                    Vector3 cameraForward = Camera.main.transform.forward; 
-                    cursor.transform.position = gazePoint - 0.1f* cameraForward;
+                //if (cursor != null)
+                //{
+                //    Vector3 cameraForward = Camera.main.transform.forward; 
+                //    cursor.transform.position = gazePoint - 0.1f* cameraForward;
                     
-                    cameraForward.Normalize();
-                    cursor.transform.rotation = Quaternion.LookRotation(cameraForward, Vector3.up);
-                }
+                //    cameraForward.Normalize();
+                //    cursor.transform.rotation = Quaternion.LookRotation(cameraForward, Vector3.up);
+                //}
                 if (gazeStarted == false)
                 {
                     startPoint = gazePoint;
@@ -156,6 +171,7 @@ public class PhotoCamera : MonoBehaviour
             else
             {
                 cursor.SetActive(false);
+                ScannerScreen.SetActive(false);
                 if (gazeStarted == true)
                 {
                     gazeStarted = false;
@@ -171,7 +187,7 @@ public class PhotoCamera : MonoBehaviour
         {
             try
             {
-                
+                ScannerScreen.SetActive(false);  // remove the scanner
                 labeler.LabelObjects(result.recognitionData, scanContext.horizontalAngleRadian, scanContext.formFactor, scanContext.origin);
                 debugText += "\nLabel Set " + result.ID;
             } catch(Exception e)
@@ -198,6 +214,7 @@ public class PhotoCamera : MonoBehaviour
     }
     public void TakePicture()
     {
+        
         CameraParameters cameraParameters = new CameraParameters();
         cameraParameters.hologramOpacity = 0.0f;
         cameraParameters.cameraResolutionWidth = cameraResolution.width;
@@ -206,13 +223,19 @@ public class PhotoCamera : MonoBehaviour
         cameraParameters.pixelFormat = showPicture == true ? CapturePixelFormat.BGRA32 : CapturePixelFormat.JPEG;
         
         scanContext = new ScanContext(horizontalAngle,ratio,Camera.main.transform); // create a context with Camera position.
-        // Activate the camera
+        placeScanner(scanContext.origin);
+        ScannerScreen.GetComponent<MoveLine>().startScanAnimation();
+        ScannerScreen.SetActive(true);        // Activate the camera
         if (photoCaptureObject != null)
         {
             if (shutterSound != null)
             {
                 shutterSound.Play();
             }
+            
+            
+            
+
             photoCaptureObject.StartPhotoModeAsync(cameraParameters, delegate (PhotoCapture.PhotoCaptureResult result)
             {
                 // Take a picture
@@ -224,7 +247,17 @@ public class PhotoCamera : MonoBehaviour
             info.SetText("camera object is not defined");
         }
     }
+    void placeScanner(Transform origin)
+    {
+        ScannerScreen.SetActive(true);
+        Vector3 cameraForward = origin.forward;
+        var dist = 1.0f;
+        ScannerScreen.transform.position = origin.position + (cameraForward * dist);
 
+        ScannerScreen.transform.rotation = Quaternion.LookRotation(cameraForward, origin.up); // align with camera up 
+        
+        
+    }
     void OnCapturedPhotoToMemory(PhotoCapture.PhotoCaptureResult result, PhotoCaptureFrame photoCaptureFrame)
     {
         List<byte> imageBufferList = new List<byte>();
@@ -248,7 +281,7 @@ public class PhotoCamera : MonoBehaviour
 
         string data = System.Convert.ToBase64String(imageArray);
         string pictureID = System.Guid.NewGuid().ToString();
-        mqttHelper.Publish("image", "{\"ID\":\""+pictureID+"\",\"image\":\""+data+"\"}");
+        mqttHelper.Publish(outboundTopic, "{\"ID\":\""+pictureID+"\",\"image\":\""+data+"\"}");
         // save the camera position and image size
 
 
@@ -269,8 +302,8 @@ public class PhotoCamera : MonoBehaviour
             //targetTexture.LoadRawTextureData(imageBufferList.ToArray()); // use memory stream array to create the texture
             photoCaptureFrame.UploadImageDataToTexture(fullTexture);
             // crop a  portion of the image at the center
-            double horizontalCameraAngleRadian = 64.69f * (Math.PI / 180); // Hololens2 camera angle in deg
-            double angleRadian = horizontalAngle * (Math.PI / 180);
+            
+            
             double cropFactor = Math.Tan(angleRadian / 2f) / Math.Tan(horizontalCameraAngleRadian / 2f);
             
             int dx = (int)(cameraResolution.width * cropFactor);
@@ -306,7 +339,7 @@ public class PhotoCamera : MonoBehaviour
             Vector3 cameraForward = scanContext.origin.forward;
             cameraForward.Normalize();
             var dist = 1.0f;
-            newElement.transform.position = Camera.main.transform.position + (cameraForward * dist);
+            newElement.transform.position = scanContext.origin.position + (cameraForward * dist);
 
             newElement.transform.rotation = Quaternion.LookRotation(cameraForward, scanContext.origin.up); // align with camera up 
             Vector3 scale = newElement.transform.localScale;
@@ -343,7 +376,7 @@ public class PhotoCamera : MonoBehaviour
     public void ResultReceiver(string msg)
     {
         
-        
+
         Debug.Log("Received message : " + msg);
         debugText = msg;
         try
