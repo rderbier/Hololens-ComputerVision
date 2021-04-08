@@ -171,7 +171,7 @@ public class PhotoCamera : MonoBehaviour
             else
             {
                 cursor.SetActive(false);
-                ScannerScreen.SetActive(false);
+               // ScannerScreen.SetActive(false);
                 if (gazeStarted == true)
                 {
                     gazeStarted = false;
@@ -212,20 +212,29 @@ public class PhotoCamera : MonoBehaviour
         gazeStarted = false;
         startPicture = true;
     }
-    public void TakePicture()
+    private void TakePicture()
+    {
+
+        ;
+        //cameraParameters.pixelFormat = showPicture == true ? CapturePixelFormat.BGRA32 : CapturePixelFormat.JPEG;
+
+        scanContext = new ScanContext(horizontalAngle, ratio, Camera.main.transform); // create a context with Camera position.
+        placeScanner(scanContext.origin);
+        ScannerScreen.GetComponent<MoveLine>().startScanAnimation();
+        
+        StartCoroutine(TakePictureInternal());
+        
+    }
+    private IEnumerator  TakePictureInternal()
     {
         
         CameraParameters cameraParameters = new CameraParameters();
         cameraParameters.hologramOpacity = 0.0f;
         cameraParameters.cameraResolutionWidth = cameraResolution.width;
         cameraParameters.cameraResolutionHeight = cameraResolution.height;
-        //cameraParameters.pixelFormat = CapturePixelFormat.BGRA32;
-        cameraParameters.pixelFormat = showPicture == true ? CapturePixelFormat.BGRA32 : CapturePixelFormat.JPEG;
+        cameraParameters.pixelFormat = CapturePixelFormat.BGRA32; 
+        //cameraParameters.pixelFormat = showPicture == true ? CapturePixelFormat.BGRA32 : CapturePixelFormat.JPEG;
         
-        scanContext = new ScanContext(horizontalAngle,ratio,Camera.main.transform); // create a context with Camera position.
-        placeScanner(scanContext.origin);
-        ScannerScreen.GetComponent<MoveLine>().startScanAnimation();
-        ScannerScreen.SetActive(true);        // Activate the camera
         if (photoCaptureObject != null)
         {
             if (shutterSound != null)
@@ -246,6 +255,7 @@ public class PhotoCamera : MonoBehaviour
         {
             info.SetText("camera object is not defined");
         }
+        yield return null;
     }
     void placeScanner(Transform origin)
     {
@@ -315,37 +325,25 @@ public class PhotoCamera : MonoBehaviour
             targetTexture.SetPixels(pix);
             targetTexture.Apply();
             // Create a gameobject that we can apply our texture to
+            if (showPicture == true)
+            {
+                GameObject newElement = Instantiate<GameObject>(PhotoPrefab);
+                GameObject quad = newElement.transform.Find("Quad").gameObject;
+                Renderer quadRenderer = quad.GetComponent<Renderer>() as Renderer;
+                quadRenderer.material.mainTexture = targetTexture;
 
-            GameObject newElement = Instantiate<GameObject>(PhotoPrefab);
-            GameObject quad = newElement.transform.Find("Quad").gameObject;
-            Renderer quadRenderer = quad.GetComponent<Renderer>() as Renderer;
-            quadRenderer.material.mainTexture = targetTexture;
-            // new Material(Shader.Find("Unlit/Texture"));
+                Vector3 cameraForward = scanContext.origin.forward;
+                cameraForward.Normalize();
+                var dist = 1.0f;
+                newElement.transform.position = scanContext.origin.position + (cameraForward * dist);
 
-            // Set position and rotation 
-            // Bug in Hololens v2 and Unity 2019 about PhotoCaptureFrame not having the location data - March 2020
-            // 
-            // Matrix4x4 cameraToWorldMatrix;
-            // photoCaptureFrame.TryGetCameraToWorldMatrix(out cameraToWorldMatrix);
-            //  Vector3 position = cameraToWorldMatrix.MultiplyPoint(Vector3.zero);
-            //  Quaternion rotation = Quaternion.LookRotation(-cameraToWorldMatrix.GetColumn(2), cameraToWorldMatrix.GetColumn(1));
-            // Vector3 cameraForward = cameraToWorldMatrix * Vector3.forward;
+                newElement.transform.rotation = Quaternion.LookRotation(cameraForward, scanContext.origin.up); // align with camera up 
+                Vector3 scale = newElement.transform.localScale;
+                scale.x = 2f * dist * (float)Math.Tan(angleRadian / 2f);
+                scale.y = scale.x * ratio; // scale the entire photo on height
+                newElement.transform.localScale = scale;
+            }
 
-
-
-
-
-
-            Vector3 cameraForward = scanContext.origin.forward;
-            cameraForward.Normalize();
-            var dist = 1.0f;
-            newElement.transform.position = scanContext.origin.position + (cameraForward * dist);
-
-            newElement.transform.rotation = Quaternion.LookRotation(cameraForward, scanContext.origin.up); // align with camera up 
-            Vector3 scale = newElement.transform.localScale;
-            scale.x = 2f * dist * (float)Math.Tan(angleRadian / 2f);
-            scale.y = scale.x * ratio; // scale the entire photo on height
-            newElement.transform.localScale = scale;
             List<byte> raw = new List<byte>(targetTexture.EncodeToJPG());
             return raw.ToArray();
 
