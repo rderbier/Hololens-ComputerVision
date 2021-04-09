@@ -108,7 +108,20 @@ public class PhotoCamera : MonoBehaviour
         PhotoCapture.CreateAsync(false, delegate (PhotoCapture captureObject)
         {
             photoCaptureObject = captureObject;
-            Debug.Log("camera ready to take picture");
+            CameraParameters cameraParameters = new CameraParameters();
+            cameraParameters.hologramOpacity = 0.0f;
+            cameraParameters.cameraResolutionWidth = cameraResolution.width;
+            cameraParameters.cameraResolutionHeight = cameraResolution.height;
+            cameraParameters.pixelFormat = CapturePixelFormat.BGRA32;
+            //cameraParameters.pixelFormat = showPicture == true ? CapturePixelFormat.BGRA32 : CapturePixelFormat.JPEG;
+
+            photoCaptureObject.StartPhotoModeAsync(cameraParameters, delegate (PhotoCapture.PhotoCaptureResult result)
+            {
+                // Take a picture
+                Debug.Log("camera ready to take picture");
+               
+            });
+            
         });
         PointerUtils.SetGazePointerBehavior(PointerBehavior.AlwaysOn);
     }
@@ -230,12 +243,6 @@ public class PhotoCamera : MonoBehaviour
     private IEnumerator  TakePictureInternal()
     {
         
-        CameraParameters cameraParameters = new CameraParameters();
-        cameraParameters.hologramOpacity = 0.0f;
-        cameraParameters.cameraResolutionWidth = cameraResolution.width;
-        cameraParameters.cameraResolutionHeight = cameraResolution.height;
-        cameraParameters.pixelFormat = CapturePixelFormat.BGRA32; 
-        //cameraParameters.pixelFormat = showPicture == true ? CapturePixelFormat.BGRA32 : CapturePixelFormat.JPEG;
         
         if (photoCaptureObject != null)
         {
@@ -247,11 +254,11 @@ public class PhotoCamera : MonoBehaviour
             
             
 
-            photoCaptureObject.StartPhotoModeAsync(cameraParameters, delegate (PhotoCapture.PhotoCaptureResult result)
-            {
+          //  photoCaptureObject.StartPhotoModeAsync(cameraParameters, delegate (PhotoCapture.PhotoCaptureResult result)
+          //  {
                 // Take a picture
                 photoCaptureObject.TakePhotoAsync(OnCapturedPhotoToMemory);
-            });
+          //  });
         }
         else
         {
@@ -269,6 +276,10 @@ public class PhotoCamera : MonoBehaviour
         ScannerScreen.transform.rotation = Quaternion.LookRotation(cameraForward, origin.up); // align with camera up 
         
         
+    }
+    void OnApplicationQuit()
+    {
+        photoCaptureObject?.StopPhotoModeAsync(OnStoppedPhotoMode);
     }
     void OnCapturedPhotoToMemory(PhotoCapture.PhotoCaptureResult result, PhotoCaptureFrame photoCaptureFrame)
     {
@@ -294,11 +305,8 @@ public class PhotoCamera : MonoBehaviour
         string data = System.Convert.ToBase64String(imageArray);
         string pictureID = System.Guid.NewGuid().ToString();
         mqttHelper.Publish(outboundTopic, "{\"ID\":\""+pictureID+"\",\"image\":\""+data+"\"}");
-        // save the camera position and image size
-
-
-        //You may only use this method if you specified the BGRA32 format in your CameraParameters.
-        photoCaptureObject.StopPhotoModeAsync(OnStoppedPhotoMode);
+  
+        
 
     }
     private byte[] ConvertAndShowOnDebugPane(PhotoCaptureFrame photoCaptureFrame)
