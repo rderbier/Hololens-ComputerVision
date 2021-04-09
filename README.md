@@ -1,18 +1,14 @@
 # Hololens-ComputerVision
 
-
 This project shows how to use windows [media capture](https://msdn.microsoft.com/library/windows/apps/windows.media.capture.mediacapture.aspx) in Hololens 2 to access the Camera, take picture send the image to a computer vision (CV) service and display an augmented reality asset close to where the picture was taken depending on the CV result.
 
 It is inspired by previous work from Joost van Schaik available at https://localjoost.github.io/using-azure-custom-vision-object/
 
 and the Picture Sample project I realized for Hololens2.
 
-
-
 Refer to [Locatable camera info from Microsoft](https://docs.microsoft.com/en-us/windows/mixed-reality/locatable-camera) for details on the Device Camera.
 
 [Locatable camera in Unity](https://docs.microsoft.com/en-us/windows/mixed-reality/locatable-camera-in-unity) provides the key API and sample scripts.
-
 
 ### Dependencies
 - Unity 2019.4.23f1
@@ -44,7 +40,6 @@ The App should request access to Camera and Microphone, accept !
 Enjoy taking Picture by just saying "Scan Image"
 
 Setup MQTT topics to receive the image and send image recognition back
-
 
 ### Next Steps
 - document ComputerVision part

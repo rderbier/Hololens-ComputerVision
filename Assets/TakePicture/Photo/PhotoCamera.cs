@@ -63,7 +63,7 @@ public class PhotoCamera : MonoBehaviour
     {
         
         gaze = CoreServices.InputSystem.GazeProvider;
-        cursor?.SetActive(false);//disable cursor
+        cursor.SetActive(false);//disable cursor
         shutterSound = GetComponent<AudioSource>() as AudioSource;
         labeler = GetComponent<ObjectLabeler>() as ObjectLabeler; 
         mqttHelper = GetComponent<MqttHelper>() as MqttHelper;
@@ -74,11 +74,8 @@ public class PhotoCamera : MonoBehaviour
         if ((PhotoCapture.SupportedResolutions != null) && (PhotoCapture.SupportedResolutions.Count() > 0))
         {
             cameraResolution = PhotoCapture.SupportedResolutions.OrderByDescending((res) => res.width * res.height).Last();
-
-
             ratio = (float)cameraResolution.height / (float)cameraResolution.width;
-        } else
-        {
+        } else {
             ratio = 9f / 16f;
         }
         scanContext = new ScanContext(horizontalAngle, ratio, Camera.main.transform); // create a context with Camera position.
@@ -114,7 +111,7 @@ public class PhotoCamera : MonoBehaviour
                     cursor?.SetActive(true); //enable cursor
                     gazeStarted = true;
                     timer = 0.0f;
-                    info.SetText("test gaze started with focus  " + focus);
+                    debugText += " ... test gaze started with focus  " + focus;
                 }
                 else
                 {
@@ -134,7 +131,7 @@ public class PhotoCamera : MonoBehaviour
                         Debug.Log("test gaze at same point done -> take picture  ");
                         startPicture = false; // 1 second of gaze at same point 
                         gazeStarted = false;
-                        cursor?.SetActive(false);
+                        cursor.SetActive(false);
 
                         TakePicture();
                     }
@@ -147,19 +144,14 @@ public class PhotoCamera : MonoBehaviour
                 if (gazeStarted == true)
                 {
                     gazeStarted = false;
-
                 }
-
             }
-
         }
-
         
         if (result != null)
         {
             try
             {
-                
                 labeler.LabelObjects(result.recognitionData, scanContext.horizontalAngleRadian, scanContext.formFactor, scanContext.origin);
                 debugText += "\nLabel Set " + result.ID;
             } catch(Exception e)
@@ -170,28 +162,31 @@ public class PhotoCamera : MonoBehaviour
             // infotext = "Received message from " + e.Topic + " : " + msg;
             result = null;
         }
-        
-
     }
     public void StopCamera()
     {
         // Deactivate our camera
-
         photoCaptureObject?.StopPhotoModeAsync(OnStoppedPhotoMode);
     }
     public void StartTakePicture()
     {
+        Debug.Log("StartTakePicture() called");
+        debugText += " ... start take picture";
+
         gazeStarted = false;
         startPicture = true;
     }
     public void TakePicture()
     {
+        Debug.Log("TakePicture() called");
+        debugText += " ... take picture";
+
         CameraParameters cameraParameters = new CameraParameters();
         cameraParameters.hologramOpacity = 0.0f;
         cameraParameters.cameraResolutionWidth = cameraResolution.width;
         cameraParameters.cameraResolutionHeight = cameraResolution.height;
-        //cameraParameters.pixelFormat = CapturePixelFormat.BGRA32;
-        cameraParameters.pixelFormat = showPicture == true ? CapturePixelFormat.BGRA32 : CapturePixelFormat.JPEG;
+        cameraParameters.pixelFormat = CapturePixelFormat.BGRA32;
+        //cameraParameters.pixelFormat = showPicture == true ? CapturePixelFormat.BGRA32 : CapturePixelFormat.JPEG;
         
         scanContext = new ScanContext(horizontalAngle,ratio,Camera.main.transform); // create a context with Camera position.
         // Activate the camera
@@ -200,40 +195,49 @@ public class PhotoCamera : MonoBehaviour
             if (shutterSound != null)
             {
                 shutterSound.Play();
+                debugText += " ... click";
+                mqttHelper.Publish("debug", "click ... ");
             }
             photoCaptureObject.StartPhotoModeAsync(cameraParameters, delegate (PhotoCapture.PhotoCaptureResult result)
             {
                 // Take a picture
+                debugText += " ... Photo Async";
                 photoCaptureObject.TakePhotoAsync(OnCapturedPhotoToMemory);
             });
         }
         else
         {
-            info.SetText("camera object is not defined");
+            Debug.Log("camera object is not defined");
+            debugText += "camera object is not defined";
+
+            //mqttHelper.Publish("image", "{\"ID\":\"" + 00 + "\",\"image\":\"" + "" + "\"}"); 
         }
     }
 
     void OnCapturedPhotoToMemory(PhotoCapture.PhotoCaptureResult result, PhotoCaptureFrame photoCaptureFrame)
     {
+        debugText += " ... picture in memory";
+        mqttHelper.Publish("debug", " ... picture in memory");
+
         List<byte> imageBufferList = new List<byte>();
 
         byte[] imageArray;
+        mqttHelper.Publish("debug", " ... checking Format");
         if (photoCaptureFrame.pixelFormat == CapturePixelFormat.JPEG)
         {
-
+            mqttHelper.Publish("debug", " ... picture is JPEG");
             // Copy the raw IMFMediaBuffer data into our empty byte list.
             photoCaptureFrame.CopyRawImageDataIntoBuffer(imageBufferList);
             imageArray = imageBufferList.ToArray();
         }
         else
         {
+            mqttHelper.Publish("debug", " ... picture is RAW");
             // Copy the raw image data into our target texture
             imageArray = ConvertAndShowOnDebugPane(photoCaptureFrame);
-
         }
 
-
-
+        mqttHelper.Publish("debug", " ... start convert");
         string data = System.Convert.ToBase64String(imageArray);
         string pictureID = System.Guid.NewGuid().ToString();
         mqttHelper.Publish("image", "{\"ID\":\""+pictureID+"\",\"image\":\""+data+"\"}");
@@ -255,6 +259,7 @@ public class PhotoCamera : MonoBehaviour
 
             var fullTexture = new Texture2D(cameraResolution.width, cameraResolution.height);
             //targetTexture.LoadRawTextureData(imageBufferList.ToArray()); // use memory stream array to create the texture
+            mqttHelper.Publish("debug", " ... UploadImageDataToTexture");
             photoCaptureFrame.UploadImageDataToTexture(fullTexture);
             // crop a  portion of the image at the center
             double horizontalCameraAngleRadian = 64.69f * (Math.PI / 180); // Hololens2 camera angle in deg
@@ -263,44 +268,48 @@ public class PhotoCamera : MonoBehaviour
             
             int dx = (int)(cameraResolution.width * cropFactor);
             int dy = (int)(cameraResolution.height * cropFactor);
-            int x = (cameraResolution.width - dx)/ 2;
+            int x = (cameraResolution.width - dx) / 2;
             int y = (cameraResolution.height - dy) / 2;
             Color[] pix = fullTexture.GetPixels(x, y, dx, dy);
             var targetTexture = new Texture2D(dx, dy);
             targetTexture.SetPixels(pix);
+            mqttHelper.Publish("debug", " ... targetTexture.Apply");
             targetTexture.Apply();
             // Create a gameobject that we can apply our texture to
 
-            GameObject newElement = Instantiate<GameObject>(PhotoPrefab);
-            GameObject quad = newElement.transform.Find("Quad").gameObject;
-            Renderer quadRenderer = quad.GetComponent<Renderer>() as Renderer;
-            quadRenderer.material.mainTexture = targetTexture;
-            // new Material(Shader.Find("Unlit/Texture"));
+            mqttHelper.Publish("debug", " ... Instantiate PhotoPrefab");
+            if (showPicture)
+            {
+                GameObject newElement = Instantiate<GameObject>(PhotoPrefab);
+                GameObject quad = newElement.transform.Find("Quad").gameObject;
+                Renderer quadRenderer = quad.GetComponent<Renderer>() as Renderer;
+                quadRenderer.material.mainTexture = targetTexture;
 
-            // Set position and rotation 
-            // Bug in Hololens v2 and Unity 2019 about PhotoCaptureFrame not having the location data - March 2020
-            // 
-            // Matrix4x4 cameraToWorldMatrix;
-            // photoCaptureFrame.TryGetCameraToWorldMatrix(out cameraToWorldMatrix);
-            //  Vector3 position = cameraToWorldMatrix.MultiplyPoint(Vector3.zero);
-            //  Quaternion rotation = Quaternion.LookRotation(-cameraToWorldMatrix.GetColumn(2), cameraToWorldMatrix.GetColumn(1));
-            // Vector3 cameraForward = cameraToWorldMatrix * Vector3.forward;
+                // new Material(Shader.Find("Unlit/Texture"));
 
+                // Set position and rotation 
+                // Bug in Hololens v2 and Unity 2019 about PhotoCaptureFrame not having the location data - March 2020
+                // 
+                // Matrix4x4 cameraToWorldMatrix;
+                // photoCaptureFrame.TryGetCameraToWorldMatrix(out cameraToWorldMatrix);
+                //  Vector3 position = cameraToWorldMatrix.MultiplyPoint(Vector3.zero);
+                //  Quaternion rotation = Quaternion.LookRotation(-cameraToWorldMatrix.GetColumn(2), cameraToWorldMatrix.GetColumn(1));
+                // Vector3 cameraForward = cameraToWorldMatrix * Vector3.forward;
 
+                mqttHelper.Publish("debug", " ... check scan context");
+                Vector3 cameraForward = scanContext.origin.forward;
+                cameraForward.Normalize();
+                var dist = 1.0f;
+                newElement.transform.position = Camera.main.transform.position + (cameraForward * dist);
 
-
-
-
-            Vector3 cameraForward = scanContext.origin.forward;
-            cameraForward.Normalize();
-            var dist = 1.0f;
-            newElement.transform.position = Camera.main.transform.position + (cameraForward * dist);
-
-            newElement.transform.rotation = Quaternion.LookRotation(cameraForward, scanContext.origin.up); // align with camera up 
-            Vector3 scale = newElement.transform.localScale;
-            scale.x = 2f * dist * (float)Math.Tan(angleRadian / 2f);
-            scale.y = scale.x * ratio; // scale the entire photo on height
-            newElement.transform.localScale = scale;
+                mqttHelper.Publish("debug", " ... LookRotation");
+                newElement.transform.rotation = Quaternion.LookRotation(cameraForward, scanContext.origin.up); // align with camera up 
+                Vector3 scale = newElement.transform.localScale;
+                scale.x = 2f * dist * (float)Math.Tan(angleRadian / 2f);
+                scale.y = scale.x * ratio; // scale the entire photo on height
+                newElement.transform.localScale = scale;
+            }
+            mqttHelper.Publish("debug", " ... EncodeToJPG");
             List<byte> raw = new List<byte>(targetTexture.EncodeToJPG());
             return raw.ToArray();
 
@@ -308,6 +317,7 @@ public class PhotoCamera : MonoBehaviour
         catch (System.Exception e)
         {
             info.SetText("error " + e.Message);
+            mqttHelper.Publish("debug", " ... error: " + e.Message);
             return null;
         }
 
@@ -331,16 +341,15 @@ public class PhotoCamera : MonoBehaviour
     public void ResultReceiver(string msg)
     {
         
-        
         Debug.Log("Received message : " + msg);
-        debugText = msg;
+        debugText += msg;
         try
         {
             result = JsonConvert.DeserializeObject<CustomVisionResult>(msg);
             debugText += "\n message ID " + result.ID;
         } catch (Exception e)
         {
-            debugText = "Error " + e.Message;
+            debugText += "Error " + e.Message;
         }
         
     }
