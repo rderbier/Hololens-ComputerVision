@@ -14,11 +14,11 @@ public class MqttHelper : MonoBehaviour
     private MqttClient client;
 
     // The connection information
-    public string brokerHostname = "ec2-11-111-11.us-west-2.compute.amazonaws.com";
-    public int brokerPort = 8883;
+    public string brokerHostname = "yourid.compute.amazonaws.com"; // 
+    public int brokerPort = 8883; // 
     public bool SSL = false;
-    public string userName = "test";
-    public string password = "test";
+    public string userName = "test"; // 
+    public string password = "test"; // 
     public TextAsset certificate;
     public TextMeshPro info;
 

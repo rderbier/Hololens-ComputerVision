@@ -15,6 +15,9 @@ public class ObjectLabeler : MonoBehaviour
     private GameObject markerKO;
 
     [SerializeField]
+    private GameObject buttonObj;
+
+    [SerializeField]
     private GameObject _labelContainer;
 
     [SerializeField]
@@ -54,10 +57,18 @@ public class ObjectLabeler : MonoBehaviour
             {
                 Debug.Log("ray hit on layer");
                 _createdObjects.Add(CreateLabel(rec.text, labelPos.Value, marker));
+                _createdObjects.Add(CreateTool("Instructions", labelPos.Value + Vector3.up * 0.15f + Vector3.right * 0.01f, buttonObj));
+                _createdObjects.Add(CreateTool("raise Case", labelPos.Value + Vector3.up * 0.15f + Vector3.right * 0.05f, buttonObj));
+                _createdObjects.Add(CreateTool("show Stats", labelPos.Value + Vector3.up * 0.15f + Vector3.right * 0.09f, buttonObj));
+                _createdObjects.Add(CreateTool("Help", labelPos.Value + Vector3.up * 0.15f + Vector3.right * 0.13f, buttonObj));
             } else
             {
                 Debug.Log("no hit on layer");
                 _createdObjects.Add(CreateLabel(rec.text, recognizedPos, marker));
+                _createdObjects.Add(CreateTool("Instructions", recognizedPos + Vector3.up * 0.15f + Vector3.right * 0.01f, buttonObj));
+                _createdObjects.Add(CreateTool("raise Case", recognizedPos + Vector3.up * 0.15f + Vector3.right * 0.05f, buttonObj));
+                _createdObjects.Add(CreateTool("show Stats", recognizedPos + Vector3.up * 0.15f + Vector3.right * 0.09f, buttonObj));
+                _createdObjects.Add(CreateTool("Help", recognizedPos + Vector3.up * 0.15f + Vector3.right * 0.13f, buttonObj));
             }
 //#endif
         }
@@ -115,6 +126,25 @@ public class ObjectLabeler : MonoBehaviour
         //connector.PivotDirectionOrient = ConnectorOrientType.OrientToCamera;
         //connector.Target = labelObject;
         return labelObject;
+    }
+
+    private GameObject CreateTool(string text, Vector3 location, GameObject btn)
+    {
+        var btnObject = Instantiate(btn);
+        btnObject.transform.position = location;
+        //btnObject.transform.LookAt(cameraTransform);
+        btnObject.transform.rotation = Quaternion.Euler(new Vector3(10, 0, 0));
+        var tool = btnObject.GetComponentInChildren<ButtonConfigHelper>() as ButtonConfigHelper;
+        if (tool != null)
+        {
+            tool.MainLabelText = text;
+            Debug.Log("Set Tool text ");
+        }
+        else
+        {
+            Debug.Log("no Tool btn");
+        }
+        return btnObject;
     }
 }
 

@@ -7,9 +7,7 @@ namespace CustomVison
     public partial class CustomVisionResult
     {
         [JsonProperty("id")]
-        public string ID { get; set; }
-
-       
+        public string ID { get; set; }  
 
         [JsonProperty("recognitionData")]
         public List<RecognitionData> recognitionData { get; set; }
@@ -19,7 +17,6 @@ namespace CustomVison
     {
         [JsonProperty("probability")]
         public double probability { get; set; }
-
        
         public string text { get; set; }
         public string marker { get; set; }
